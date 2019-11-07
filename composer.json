@@ -1,0 +1,23 @@
+{
+  "name": "skyline/translation",
+  "minimum-stability": "dev",
+  "license": "BSD-3-Clause",
+  "authors": [
+    {
+      "name": "Thomas Abplanalp",
+      "email": "info@tasoft.ch"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Skyline\\Translation\\" : "src"
+    }
+  },
+  "require" : {
+    "php": "^7.2",
+    "symfony/http-foundation": "dev-master"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^6"
+  }
+}
