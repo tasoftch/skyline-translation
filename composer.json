@@ -1,6 +1,6 @@
 {
   "name": "skyline/translation",
-  "minimum-stability": "dev",
+  "description": "Translation and locale management for Skyline CMS",
   "license": "BSD-3-Clause",
   "authors": [
     {
@@ -15,7 +15,7 @@
   },
   "require" : {
     "php": "^7.2",
-    "symfony/http-foundation": "dev-master"
+    "symfony/http-foundation": "^5.0"
   },
   "require-dev": {
     "phpunit/phpunit": "^6"
