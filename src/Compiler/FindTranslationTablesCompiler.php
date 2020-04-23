@@ -32,41 +32,51 @@
  *
  */
 
-namespace Skyline\Translation\Service;
+namespace Skyline\Translation\Compiler;
 
-use Skyline\Translation\TranslationManager;
-use Symfony\Component\HttpFoundation\Request;
-use TASoft\Service\ConfigurableTrait;
-use TASoft\Service\Container\AbstractContainer;
 
-class TranslationManagerFactory extends AbstractContainer
+use Skyline\Compiler\AbstractCompiler;
+use Skyline\Compiler\CompilerContext;
+use Skyline\Compiler\Context\Code\SourceFile;
+
+class FindTranslationTablesCompiler extends AbstractCompiler
 {
-	use ConfigurableTrait;
-
-	const SERVICE_NAME = "translationManager";
-
-	const CONFIG_REQUEST = 'request';
-	const CONFIG_LOCALE_PROVIDER = 'l-provider';
-
-	private $defaultLocale;
-
-	public function __construct($defaultLocale)
+	/**
+	 * @inheritDoc
+	 */
+	public function compile(CompilerContext $context)
 	{
-		$this->defaultLocale = $defaultLocale;
-	}
+		/** @var SourceFile $file */
 
-	protected function loadInstance()
-	{
-		$lpro = $this->getConfiguration()[static::CONFIG_LOCALE_PROVIDER] ?? NULL;
-		$tl = new TranslationManager($this->defaultLocale, $lpro);
+		$translationTables = [];
 
-		if($request = $this->getConfiguration()[ static::CONFIG_REQUEST ] ?? NULL) {
-			if($request instanceof Request) {
-				$languages = $request->getLanguages();
-				$tl->setClientLocales( $languages );
+		$handleFile = function($fileName, $absPath) use (&$translationTables) {
+			if(preg_match("/^([a-zA-Z0-9_\-]+)\.(?:([a-z]+)[\-_]([A-Z]+)|([a-z]+))\.loc\.php$/",$fileName, $ms)) {
+				list(, $tableName, $language, $region, $lngOnly) = $ms;
+				if($lngOnly)
+					$language = $lngOnly;
+
+				$translationTables[$tableName][$language]['files'][] = $absPath;
+				if($region)
+					$translationTables[$tableName][$language]['regions'][$region] = $absPath;
+			} else
+				trigger_error("Can not parse filename $fileName", E_USER_NOTICE);
+		};
+
+		foreach($context->getSourceCodeManager()->yieldSourceFiles("/\.loc\.php$/i") as $file) {
+			$handleFile($file->getFileName(), $file->getRealPath());
+		}
+
+		if(is_dir($tdir = $context->getSkylineAppDataDirectory() . DIRECTORY_SEPARATOR . "/Translations")) {
+			foreach(new \DirectoryIterator($tdir) as $file) {
+				if($file->getBasename()[0] == '.')
+					continue;
+				if(fnmatch("*.loc.php", $file->getBasename()))
+					$handleFile($file->getBasename(), $file->getRealPath());
 			}
 		}
 
-		return $tl;
+		$cdir = $context->getSkylineAppDataDirectory() . DIRECTORY_SEPARATOR . "Compiled/translations.php";
+		file_put_contents($cdir, "<?php\nreturn " . var_export($translationTables, true), ";");
 	}
 }

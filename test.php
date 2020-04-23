@@ -32,41 +32,15 @@
  *
  */
 
-namespace Skyline\Translation\Service;
+$examples = [
+	'test.de.loc.php',
+	'other-test_with___special.de_AT.loc.php',
+	'onceMORe.pt-PT.loc.php'
+];
 
-use Skyline\Translation\TranslationManager;
-use Symfony\Component\HttpFoundation\Request;
-use TASoft\Service\ConfigurableTrait;
-use TASoft\Service\Container\AbstractContainer;
-
-class TranslationManagerFactory extends AbstractContainer
-{
-	use ConfigurableTrait;
-
-	const SERVICE_NAME = "translationManager";
-
-	const CONFIG_REQUEST = 'request';
-	const CONFIG_LOCALE_PROVIDER = 'l-provider';
-
-	private $defaultLocale;
-
-	public function __construct($defaultLocale)
-	{
-		$this->defaultLocale = $defaultLocale;
-	}
-
-	protected function loadInstance()
-	{
-		$lpro = $this->getConfiguration()[static::CONFIG_LOCALE_PROVIDER] ?? NULL;
-		$tl = new TranslationManager($this->defaultLocale, $lpro);
-
-		if($request = $this->getConfiguration()[ static::CONFIG_REQUEST ] ?? NULL) {
-			if($request instanceof Request) {
-				$languages = $request->getLanguages();
-				$tl->setClientLocales( $languages );
-			}
-		}
-
-		return $tl;
-	}
+foreach($examples as $example) {
+	if(preg_match("/^([a-zA-Z0-9_\-]+)\.(?:([a-z]+)[\-_]([A-Z]+)|([a-z]+))\.loc\.php$/", $example, $ms)) {
+		print_r($ms);
+	} else
+		echo $example, PHP_EOL;
 }

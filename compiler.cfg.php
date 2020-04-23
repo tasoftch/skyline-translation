@@ -34,9 +34,10 @@
 
 use Skyline\Compiler\Factory\AbstractExtendedCompilerFactory;
 use Skyline\Compiler\Predef\CreateDirectoriesCompiler;
+use Skyline\Translation\Compiler\FindTranslationTablesCompiler;
 
 return [
-    'create-translations' => [
+    'create-translations-dir' => [
         AbstractExtendedCompilerFactory::COMPILER_CLASS_KEY                            => CreateDirectoriesCompiler::class,
         AbstractExtendedCompilerFactory::COMPILER_ARGUMENTS_KEY => [
             'directoryNames' => [
@@ -46,5 +47,11 @@ return [
         AbstractExtendedCompilerFactory::COMPILER_DEPENDENCIES_KEY => [
             'composer-packages-order'
         ]
-    ]
+    ],
+	'find-translation-tables' => [
+		AbstractExtendedCompilerFactory::COMPILER_CLASS_KEY                            => FindTranslationTablesCompiler::class,
+		AbstractExtendedCompilerFactory::COMPILER_DEPENDENCIES_KEY => [
+			'create-translations-dir'
+		]
+	]
 ];
