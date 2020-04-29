@@ -43,8 +43,6 @@ class TranslationManagerFactory extends AbstractContainer
 {
 	use ConfigurableTrait;
 
-	const SERVICE_NAME = "translationManager";
-
 	const CONFIG_REQUEST = 'request';
 	const CONFIG_LOCALE_PROVIDER = 'l-provider';
 

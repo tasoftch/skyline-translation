@@ -32,9 +32,12 @@ use Skyline\Translation\Provider\LocaleProviderInterface;
 use Skyline\Translation\Translation\DependentTranslationInterface;
 use Skyline\Translation\Translation\TranslationInterface;
 use Symfony\Component\HttpFoundation\Request;
+use TASoft\Service\AbstractService;
 
-class TranslationManager
+class TranslationManager extends AbstractService
 {
+	const SERVICE_NAME = "translationManager";
+
     /**
      *
      * @var Locale;
@@ -56,7 +59,11 @@ class TranslationManager
      */
     private $serverLocales;
 
+    /** @var LocaleProviderInterface|null  */
     private $tableProvider;
+
+    /** @var string|null */
+    private $defaultGlobalTableName;
 
     public function __construct(string $defaultLocale, $supportedLocales = NULL)
     {
@@ -153,15 +160,55 @@ class TranslationManager
         return $this->serverLocales->getLocales();
     }
 
+	/**
+	 * @return string|null
+	 */
+	public function getDefaultGlobalTableName(): ?string
+	{
+		return $this->defaultGlobalTableName;
+	}
+
+	/**
+	 * @param string|null $defaultGlobalTableName
+	 * @return static
+	 */
+	public function setDefaultGlobalTableName(?string $defaultGlobalTableName)
+	{
+		$this->defaultGlobalTableName = $defaultGlobalTableName;
+		return $this;
+	}
+
+	/**
+	 * @param string $key
+	 * @param string $table
+	 * @param mixed ...$arguments
+	 * @return string
+	 */
+    public function translateGlobal(string $key, string $table = NULL, ...$arguments): string {
+		if($this->tableProvider) {
+			if(!$table)
+				$table = $this->getDefaultGlobalTableName() ?? 'general';
+
+			$translations = $this->tableProvider->getLocalizations($key, $table);
+			return $translations ? $this->translate($translations, ...$arguments) : $key;
+		} else
+			trigger_error("No table provider is set", E_USER_NOTICE);
+    	return $key;
+	}
 
     /**
      * Chooses from a bunch of translations the best one or the default.
      *
-     * @param string[]|TranslationInterface[] $translations     The array's keys are used as locale identifiers
+     * @param string[]|TranslationInterface[]|string $translations     The array's keys are used as locale identifiers
      * @param mixed ...$arguments
      * @return string
      */
-    public function translate(array $translations, ...$arguments): string {
+    public function translate($translations, ...$arguments): string {
+    	if(is_string($translations)) {
+			$table = array_shift($arguments);
+			return $this->translateGlobal($translations, $table, ...$arguments);
+		}
+
         if($translation = $this->findTranslation($translations)) {
             if($translation instanceof DependentTranslationInterface)
                 $translation->apply($arguments);

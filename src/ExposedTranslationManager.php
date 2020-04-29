@@ -32,22 +32,60 @@
  *
  */
 
-namespace Skyline\Translation\Provider;
+namespace Skyline\Translation;
 
 
-interface LocaleProviderInterface
+use Skyline\Render\Compiler\ContextMethodForwarderInterface;
+
+class ExposedTranslationManager extends TranslationManager implements ContextMethodForwarderInterface
 {
-    /**
-     * Returns a list of supported locale identifiers
-     *
-     * @return array
-     */
-    public function getSupportedLocaleNames(): array ;
+	public static function getServiceName(): string
+	{
+		return static::SERVICE_NAME;
+	}
+
+
+	public static function getPurposes(): array
+	{
+		return [
+			self::PURPOSE_CONTEXT_FORWARDING
+		];
+	}
 
 	/**
-	 * @param string $key
-	 * @param string $table
-	 * @return array
+	 * @context translateGlobal
+	 * @inheritDoc
 	 */
-    public function getLocalizations(string $key, string $table): array;
+	public function translateGlobal(string $key, string $table = NULL, ...$arguments): string
+	{
+		return parent::translateGlobal($key, $table, $arguments);
+	}
+
+
+	/**
+	 * @context translate
+	 * @inheritDoc
+	 */
+	public function translate($translations, ...$arguments): string
+	{
+		return parent::translate($translations, $arguments);
+	}
+
+	/**
+	 * @context translateCount
+	 * @inheritDoc
+	 */
+	public function translateCount(int $count, array $translations, ...$arguments): string
+	{
+		return parent::translateCount($count, $translations, $arguments);
+	}
+
+	/**
+	 * @context translateItems
+	 * @inheritDoc
+	 */
+	public function translateItemList(array $itemList, array $translations, callable $stringifier = NULL, ...$arguments): string
+	{
+		return parent::translateItemList($itemList, $translations, $stringifier, $arguments);
+	}
 }

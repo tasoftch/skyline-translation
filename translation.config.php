@@ -33,21 +33,29 @@
  */
 
 use Skyline\Kernel\Config\MainKernelConfig;
+use Skyline\Translation\Provider\CompiledTableProvider;
 use Skyline\Translation\Service\TranslationManagerFactory;
 use Skyline\Translation\TranslationManager;
 use TASoft\Service\Config\AbstractFileConfiguration;
 
 return [
     MainKernelConfig::CONFIG_SERVICES => [
-        TranslationManagerFactory::SERVICE_NAME => [
+        TranslationManager::SERVICE_NAME => [
             AbstractFileConfiguration::SERVICE_CONTAINER => TranslationManagerFactory::class,
             AbstractFileConfiguration::SERVICE_INIT_ARGUMENTS => [
                 'defaultLocale' => '%locale.default%'
             ],
 			AbstractFileConfiguration::SERVICE_INIT_CONFIGURATION => [
-				TranslationManagerFactory::CONFIG_REQUEST => '$request'
+				TranslationManagerFactory::CONFIG_REQUEST => '$request',
+				TranslationManagerFactory::CONFIG_LOCALE_PROVIDER => '$TranslationProvider'
 			],
 			AbstractFileConfiguration::CONFIG_SERVICE_TYPE_KEY => TranslationManager::class
-        ]
+        ],
+		'TranslationProvider' => [
+			AbstractFileConfiguration::SERVICE_CLASS => CompiledTableProvider::class,
+			AbstractFileConfiguration::SERVICE_INIT_ARGUMENTS => [
+				'translations-file' => '$(C)/translations.php'
+			]
+		]
     ]
 ];

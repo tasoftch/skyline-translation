@@ -34,20 +34,59 @@
 
 namespace Skyline\Translation\Provider;
 
-
-interface LocaleProviderInterface
+class CompiledTableProvider implements LocaleProviderInterface
 {
-    /**
-     * Returns a list of supported locale identifiers
-     *
-     * @return array
-     */
-    public function getSupportedLocaleNames(): array ;
+	private $compiledFileName;
+	private $fileContents;
 
 	/**
-	 * @param string $key
-	 * @param string $table
-	 * @return array
+	 * CompiledTableProvider constructor.
+	 * @param $compiledFileName
 	 */
-    public function getLocalizations(string $key, string $table): array;
+	public function __construct($compiledFileName)
+	{
+		$this->compiledFileName = $compiledFileName;
+	}
+
+	private function _loadFile() {
+		if(NULL === $this->fileContents) {
+			$this->fileContents = require $this->compiledFileName;
+		}
+
+		return $this->fileContents;
+	}
+
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getSupportedLocaleNames(): array
+	{
+		return [];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getLocalizations(string $key, string $table): array
+	{
+		if(isset($this->_loadFile()[$table])) {
+			$tableContents = &$this->fileContents[$table];
+
+			foreach($tableContents as $lid => &$translations) {
+				if(is_string($translations))
+					$translations = require $translations;
+			}
+
+			return array_filter(array_map(function($tr) use ($key) {
+				foreach($tr as $k => $t) {
+					if($k == $key)
+						return $t;
+				}
+				return NULL;
+			}, $tableContents));
+		}
+
+		return [];
+	}
 }
