@@ -45,6 +45,8 @@ class TranslationManagerFactory extends AbstractContainer
 
 	const CONFIG_REQUEST = 'request';
 	const CONFIG_LOCALE_PROVIDER = 'l-provider';
+	const CONFIG_REGISTER_FILE = 'r-file';
+	const CONFIG_SHOULD_REGISTER = 'register-enabled';
 
 	private $defaultLocale;
 
@@ -56,7 +58,13 @@ class TranslationManagerFactory extends AbstractContainer
 	protected function loadInstance()
 	{
 		$lpro = $this->getConfiguration()[static::CONFIG_LOCALE_PROVIDER] ?? NULL;
-		$tl = new TranslationManager($this->defaultLocale, $lpro);
+
+		if($this->getConfiguration()[static::CONFIG_SHOULD_REGISTER] ?? false) {
+			$register = $this->getConfiguration()[static::CONFIG_REGISTER_FILE];
+		} else
+			$register = NULL;
+
+		$tl = new TranslationManager($this->defaultLocale, $lpro, $register);
 
 		if($request = $this->getConfiguration()[ static::CONFIG_REQUEST ] ?? NULL) {
 			if($request instanceof Request) {

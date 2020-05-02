@@ -33,5 +33,6 @@
  */
 
 return [
-	"locale.default" => 'en'
+	"locale.default" => 'en',
+	"translation.register.enabled" => false
 ];

@@ -51,6 +51,8 @@ class TranslationCommand extends AbstractSkylineCommand
 		$this->setDescription("Searches for translation instructions in all *.phtml templates");
 
 		$this->addOption("export", 'e', InputOption::VALUE_REQUIRED, 'Exports any table translations into a given file.');
+		$this->addOption("exclude", 'x', InputOption::VALUE_REQUIRED|InputOption::VALUE_IS_ARRAY, 'List glob patterns for files or directories to exclude from scan');
+
 		$this->addArgument("source-directory", InputArgument::OPTIONAL, 'Searches from this source', './');
 	}
 
@@ -69,80 +71,122 @@ class TranslationCommand extends AbstractSkylineCommand
 			$exportHistory = [];
 		}
 
-		$transHandler = function($arguments) use (&$translations, &$file, &$exportHistory) {
-			$firstArg = array_shift($arguments);
-			if(is_string($firstArg)) {
-				$trace = debug_backtrace();
-				array_shift($trace);
-				$trace = array_shift($trace);
+		$transHandler = function($firstArg, $line) use (&$translations, &$file, &$exportHistory) {
 
-				$trFile = NULL;
-				foreach($translations as $translation) {
-					if(in_array($firstArg, $translation[4])) {
-						$trFile[] = $translation[3];
-					}
-				}
-
-				if(is_array($exportHistory)) {
-					$exportHistory[$firstArg][] = [$file->getPathname(), $trace["line"]];
-				}
-
-				if($trFile)
-					$trFile = sprintf("Translated in %d file(s): <ok>%s</ok>", count($trFile), implode(", ", $trFile));
-				else
-					$trFile = "<error>Not yet translated.</error>";
-
-				$this->io->writeln("    Line {$trace['line']}: <translation>$firstArg</translation> => $trFile");
-			}
-		};
-
-		$translator = new class($transHandler) {
-			private $handler;
-			public function __construct($handler)
-			{
-				$this->handler = $handler;
-			}
-
-			public function __call($name, $arguments)
-			{
-				if($name == 'translate') {
-					($this->handler)($arguments);
+			$trFile = NULL;
+			foreach($translations as $translation) {
+				if(in_array($firstArg, $translation[4])) {
+					$trFile[] = $translation[3];
 				}
 			}
-			public function __get($name){}
-			public function __set($name, $value){}
-			public static function __callStatic($name, $arguments){}
+
+			if(is_array($exportHistory)) {
+				$exportHistory[$firstArg][] = [$file, $line];
+			}
+
+			if($trFile)
+				$trFile = sprintf("Translated in %d file(s): <ok>%s</ok>", count($trFile), implode(", ", $trFile));
+			else
+				$trFile = "<error>Not yet translated.</error>";
+
+			$this->io->writeln("    Line $line: <translation>$firstArg</translation> => $trFile");
 		};
 
 		/** @var \SplFileInfo $file */
 		$files = [];
 
-		foreach(new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator($src) ) as $file) {
-			if(fnmatch("*.phtml", $file->getBasename())) {
-				$files[] = $file;
-				continue;
-			}
+		$excluded = $input->getOption("exclude") ?: [];
 
-			if(preg_match("/^([^\.]+)\.([a-z_]+)\.loc\.php$/i", $file->getBasename(), $ms)) {
-				$ms[] = $file->getPathname();
-				$ms[] = array_keys( @include $file->getPathname());
-				$translations[] = $ms;
+		$iterator = function($directory) use ($excluded, &$iterator) {
+			/** @var \SplFileInfo $item */
+			foreach(new \DirectoryIterator($directory instanceof \SplFileInfo ? $directory->getPathname() : $directory) as $item) {
+				if($item->getBasename()[0] == '.')
+					continue;
+
+				foreach($excluded as $ex) {
+					if(fnmatch($ex, $item->getBasename()))
+						continue 2;
+				}
+
+				if($item->isDir())
+					yield from $iterator($item);
+				else
+					yield $item;
 			}
+		};
+
+		if(is_dir($src)) {
+			foreach($iterator($src) as $file) {
+				if(fnmatch("*.phtml", $file->getBasename())) {
+					$files[] = $file->getPathname();
+					continue;
+				}
+
+				if(preg_match("/^([^\.]+)\.([a-z_]+)\.loc\.php$/i", $file->getBasename(), $ms)) {
+					$ms[] = $file->getPathname();
+					$ms[] = array_keys( @include $file->getPathname());
+					$translations[] = $ms;
+				}
+			}
+		} elseif (is_file($src)) {
+			$files[] = $src;
 		}
 
-		foreach($files as $file) {
-			$this->io->writeln("File: <file>".$file->getPathname()."</file>");
 
-			$cb = function() use ($file) {
-				@include $file->getRealPath();
-			};
+		foreach($files as $file) {
+			$this->io->writeln("File: <file>".$file."</file>");
+
 			try {
-				ob_start();
-				$cb->call($translator);
+
+				$tokens = token_get_all(file_get_contents( $file, TOKEN_PARSE ));
+				$state = 0;
+
+				foreach($tokens as $token) {
+					if(is_array($token)) {
+						if($token[0] == T_WHITESPACE || $token[0] == T_COMMENT || $token[0] == T_DOC_COMMENT)
+							continue;
+
+						if($state == 0) {
+							if($token[0] == T_VARIABLE && strcasecmp($token[1], '$this') === 0) {
+								$state = 1;
+								continue;
+							}
+						}
+
+						if($state == 1) {
+							if($token[0] == T_OBJECT_OPERATOR) {
+								$state = 2;
+								continue;
+							} else
+								$state = 0;
+						}
+
+						if($state == 2) {
+							if($token[0] == T_STRING) {
+								if(strcasecmp($token[1], 'translate') === 0) {
+									$state = 3;
+									continue;
+								}
+							} else
+								$state = 0;
+						}
+
+						if($state == 4) {
+							if($token[0] == T_ENCAPSED_AND_WHITESPACE || $token[0] == T_CONSTANT_ENCAPSED_STRING) {
+								$key = trim($token[1], "\"'");
+								$transHandler($key, $token[2]);
+							} else
+								$state = 0;
+						}
+					} elseif($state == 3 && $token = "(")
+						$state = 4;
+					else
+						$state = 0;
+				}
+
+				//$cb->call($translator);
 			} catch (\Throwable $exception) {
 				$this->io->writeln("<error> ** Error: " . $exception->getMessage() . "</error>");
-			} finally {
-				ob_end_clean();
 			}
 		}
 
@@ -156,7 +200,7 @@ class TranslationCommand extends AbstractSkylineCommand
 					$content .= "\t// $f:$line\n";
 				}
 				$key = var_export($key, true);
-				$content .= "\t$key => $key,\n";
+				$content .= "\t$key => $key,\n\n";
 			}
 
 			$content .= "];";

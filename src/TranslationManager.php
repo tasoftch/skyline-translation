@@ -65,7 +65,9 @@ class TranslationManager extends AbstractService
     /** @var string|null */
     private $defaultGlobalTableName;
 
-    public function __construct(string $defaultLocale, $supportedLocales = NULL)
+    private $register, $_reg;
+
+    public function __construct(string $defaultLocale, $supportedLocales = NULL, string $registeredTranslationsFile = NULL)
     {
         if($defaultLocale) {
             $this->defaultLocale = new Locale($defaultLocale);
@@ -79,9 +81,23 @@ class TranslationManager extends AbstractService
             if($supportedLocales)
                 throw new BadLocaleException("Supported locales must be an array or a locale provider");
         }
+
+        if($registeredTranslationsFile) {
+        	$this->register = $registeredTranslationsFile;
+        	if(is_file($registeredTranslationsFile))
+        		$this->_reg = require $registeredTranslationsFile;
+		}
     }
 
-    /**
+    public function __destruct()
+	{
+		if($this->register && $this->_reg) {
+			$data = var_export($this->_reg, true);
+			file_put_contents($this->register, "<?php\nreturn $data;");
+		}
+	}
+
+	/**
      * @return LocaleInterface
      */
     public function getDefaultLocale(): LocaleInterface
@@ -185,6 +201,20 @@ class TranslationManager extends AbstractService
 	 * @return string
 	 */
     public function translateGlobal(string $key, string $table = NULL, ...$arguments): string {
+    	if($this->register) {
+    		$traces = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+    		foreach($traces as $trace) {
+    			if($file = $trace['file'] ?? NULL) {
+    				// Forwarder method of DefaultRenderContext
+    				if($file !== __FILE__ && @$trace["function"] != 'call_user_func_array') {
+    					$file = "$file:{$trace['line']}";
+						if(!in_array($file, $this->_reg[$key] ?? []))
+							$this->_reg[$key][] = $file;
+    					break;
+					}
+				}
+			}
+		}
 		if($this->tableProvider) {
 			if(!$table)
 				$table = $this->getDefaultGlobalTableName() ?? 'general';

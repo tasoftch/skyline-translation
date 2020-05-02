@@ -47,7 +47,9 @@ return [
             ],
 			AbstractFileConfiguration::SERVICE_INIT_CONFIGURATION => [
 				TranslationManagerFactory::CONFIG_REQUEST => '$request',
-				TranslationManagerFactory::CONFIG_LOCALE_PROVIDER => '$TranslationProvider'
+				TranslationManagerFactory::CONFIG_LOCALE_PROVIDER => '$TranslationProvider',
+				TranslationManagerFactory::CONFIG_REGISTER_FILE => '$(C)/translations.register.php',
+				TranslationManagerFactory::CONFIG_SHOULD_REGISTER => '%translation.register.enabled%'
 			],
 			AbstractFileConfiguration::CONFIG_SERVICE_TYPE_KEY => TranslationManager::class
         ],
