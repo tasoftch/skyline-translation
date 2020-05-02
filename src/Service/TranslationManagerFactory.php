@@ -34,6 +34,7 @@
 
 namespace Skyline\Translation\Service;
 
+use Skyline\Translation\RegisterTranslationManager;
 use Skyline\Translation\TranslationManager;
 use Symfony\Component\HttpFoundation\Request;
 use TASoft\Service\ConfigurableTrait;
@@ -64,7 +65,10 @@ class TranslationManagerFactory extends AbstractContainer
 		} else
 			$register = NULL;
 
-		$tl = new TranslationManager($this->defaultLocale, $lpro, $register);
+		if($register)
+			$tl = new RegisterTranslationManager($this->defaultLocale, $lpro, $register);
+		else
+			$tl = new TranslationManager($this->defaultLocale, $lpro);
 
 		if($request = $this->getConfiguration()[ static::CONFIG_REQUEST ] ?? NULL) {
 			if($request instanceof Request) {
