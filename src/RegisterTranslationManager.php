@@ -39,7 +39,8 @@ class RegisterTranslationManager extends TranslationManager
 
 						$file = "$file:{$trace['line']}";
 
-						$table = $this->getDefaultGlobalTableName() ?? 'general';
+						if(!$table)
+							$table = $this->getDefaultGlobalTableName() ?? 'general';
 
 						if(!in_array($file, $this->_reg[$table][$key] ?? []))
 							$this->_reg[$table][$key][] = $file;
@@ -48,6 +49,6 @@ class RegisterTranslationManager extends TranslationManager
 				}
 			}
 		}
-		return parent::translateGlobal($key, $table, $arguments);
+		return parent::translateGlobal($key, $table, ...$arguments);
 	}
 }

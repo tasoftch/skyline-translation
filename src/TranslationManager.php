@@ -192,7 +192,7 @@ class TranslationManager extends AbstractService
 				$table = $this->getDefaultGlobalTableName() ?? 'general';
 
 			$translations = $this->tableProvider->getLocalizations($key, $table);
-			return $translations ? $this->translate($translations, ...$arguments) : $key;
+			return $translations ? $this->translate($translations, ...$arguments) : vsprintf( $key, $arguments);
 		} else
 			trigger_error("No table provider is set", E_USER_NOTICE);
     	return $key;
